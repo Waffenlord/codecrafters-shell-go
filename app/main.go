@@ -44,7 +44,7 @@ func cleanCommand(c string) commandReceived {
 	command := strings.Trim(commandParts[0], " ")
 	var commandParam string
 	if len(commandParts) > 1 {
-		commandParam = strings.Trim(commandParts[1], " ")
+		commandParam = strings.Trim(strings.Join(commandParts[1:], " "), " ")
 	} 
 	return commandReceived{
 		command,
