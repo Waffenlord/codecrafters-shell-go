@@ -74,6 +74,11 @@ type typeC struct {
 func (t typeC) execute(param string) {
 	c, ok := commandsMap[param]
 	if !ok {
+		path := getCommandDirectoryAsync(param)
+		if path != "" {
+			fmt.Printf("%s is %s\n", param, path)
+			return
+		}
 		fmt.Printf("%s: not found\n", param)
 		return
 	}
