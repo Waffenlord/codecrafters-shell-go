@@ -49,6 +49,9 @@ func (l *Lexer) nextToken() Token {
 	case '\'':
 		content := l.readSingleQuote()
 		token = newToken(STRING, content)
+	case '"':
+		content := l.readDoubleQuote()
+		token = newToken(STRING, content)
 	case ' ':
 		token = newToken(SPACE, " ")
 	case '.':
@@ -90,6 +93,16 @@ func (l *Lexer) readSingleQuote() string {
 	return l.input[position: l.position]
 }
 
+func (l *Lexer) readDoubleQuote() string {
+	position := l.position + 1
+	for {
+		l.readChar()
+		if l.ch == 0 || l.ch == '"' {
+			break
+		}
+	}
+	return l.input[position: l.position]
+}
 
 func isLiteral(ch byte) bool {
 	return ('a' <= ch && ch <= 'z') ||
