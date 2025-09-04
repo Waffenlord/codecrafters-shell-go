@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -35,6 +36,10 @@ var commandsMap = map[string]command{
 	},
 	"pwd": pwd{
 		name: "pwd",
+		category: builtin,
+	},
+	"cd": cd{
+		name: "cd",
 		category: builtin,
 	},
 }
@@ -101,14 +106,35 @@ type pwd struct {
 func (p pwd) execute(param string) {
 	currentDir, err := os.Getwd()
 	if err != nil {
-		fmt.Println("error finding path")
-		os.Exit(1)
+		log.Fatal("error finding path")
 	}
 	fmt.Println(currentDir)
 }
 
 func (p pwd) getCategory() commandType {
 	return p.category
+}
+
+
+type cd struct {
+	name string
+	category commandType
+}
+
+func (c cd) execute(param string) {
+	_, err := os.Stat(param)
+	if err != nil {
+		fmt.Printf("cd: %s: No such file or directory\n", param)
+		return
+	}
+	err = os.Chdir(param)
+	if err != nil {
+		log.Fatal("error changing path")
+	}
+}
+
+func (c cd) getCategory() commandType {
+	return c.category
 }
 
 func newCommandMenu() commandMenu {
