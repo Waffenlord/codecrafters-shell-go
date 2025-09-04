@@ -11,7 +11,7 @@ import (
 
 type commandReceived struct {
 	command string
-	param string 
+	params  []string
 }
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 		if !ok {
 			path := getCommandDirectoryAsync(commandData.command)
 			if path != "" {
-				out, err := exec.Command(commandData.command, strings.Split(commandData.param, " ")...).Output()
+				out, err := exec.Command(commandData.command, filterSpacesFromParams(commandData.params)...).Output()
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -39,25 +39,26 @@ func main() {
 			fmt.Println(commandTyped[:len(commandTyped)-1] + ": command not found")
 			continue
 		}
-		result.execute(commandData.param)
+		result.execute(strings.Join(commandData.params, ""))
 	}
 
 }
-
 
 func cleanCommand(c string) commandReceived {
 	commandCleaned := c[:len(c)-1]
 	if len(commandCleaned) == 0 {
 		return commandReceived{}
 	}
+
 	commandParts := strings.Split(commandCleaned, " ")
 	command := strings.Trim(commandParts[0], " ")
-	var commandParam string
+	var commandParams []string
 	if len(commandParts) > 1 {
-		commandParam = strings.Trim(strings.Join(commandParts[1:], " "), " ")
-	} 
+		commandParams = parseInput(commandCleaned)
+	}
+
 	return commandReceived{
 		command,
-		commandParam,
+		commandParams,
 	}
 }
