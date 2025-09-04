@@ -22,15 +22,19 @@ type command interface {
 
 var commandsMap = map[string]command{
 	"exit": exit{
-		name: "exit",
+		name:     "exit",
 		category: builtin,
 	},
 	"echo": echo{
-		name: "echo",
+		name:     "echo",
 		category: builtin,
 	},
-	"type": typeC {
-		name: "type",
+	"type": typeC{
+		name:     "type",
+		category: builtin,
+	},
+	"pwd": pwd{
+		name: "pwd",
 		category: builtin,
 	},
 }
@@ -54,7 +58,7 @@ func (e exit) getCategory() commandType {
 }
 
 type echo struct {
-	name string
+	name     string
 	category commandType
 }
 
@@ -67,7 +71,7 @@ func (e echo) getCategory() commandType {
 }
 
 type typeC struct {
-	name string
+	name     string
 	category commandType
 }
 
@@ -87,6 +91,24 @@ func (t typeC) execute(param string) {
 
 func (t typeC) getCategory() commandType {
 	return t.category
+}
+
+type pwd struct {
+	name     string
+	category commandType
+}
+
+func (p pwd) execute(param string) {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("error finding path")
+		os.Exit(1)
+	}
+	fmt.Println(currentDir)
+}
+
+func (p pwd) getCategory() commandType {
+	return p.category
 }
 
 func newCommandMenu() commandMenu {
