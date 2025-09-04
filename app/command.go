@@ -35,11 +35,11 @@ var commandsMap = map[string]command{
 		category: builtin,
 	},
 	"pwd": pwd{
-		name: "pwd",
+		name:     "pwd",
 		category: builtin,
 	},
 	"cd": cd{
-		name: "cd",
+		name:     "cd",
 		category: builtin,
 	},
 }
@@ -115,13 +115,23 @@ func (p pwd) getCategory() commandType {
 	return p.category
 }
 
-
 type cd struct {
-	name string
+	name     string
 	category commandType
 }
 
 func (c cd) execute(param string) {
+	if param == "~" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal("error finding home directory")
+		}
+		err = os.Chdir(homeDir)
+		if err != nil {
+			log.Fatal("error changing to home directory")
+		}
+		return
+	}
 	_, err := os.Stat(param)
 	if err != nil {
 		fmt.Printf("cd: %s: No such file or directory\n", param)
