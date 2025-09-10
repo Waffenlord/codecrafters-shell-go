@@ -10,6 +10,7 @@ const (
 	DOT = "DOT"
 	EOF = "EOF"
 	FORWARD = "FORWARD"
+	BACKWARD = "BACKWARD"
 	HOME = "HOME"
 )
 
@@ -58,6 +59,9 @@ func (l *Lexer) nextToken() Token {
 		token = newToken(DOT, ".")
 	case '/':
 		token = newToken(FORWARD, "/")
+	case '\\':
+		content := l.readBackslash()
+		token = newToken(BACKWARD, content)
 	case '~':
 		token = newToken(HOME, "~")
 	case 0:
@@ -72,6 +76,14 @@ func (l *Lexer) nextToken() Token {
 	}
 	l.readChar()
 	return token
+}
+
+func (l *Lexer) readBackslash() string {
+	l.readChar()
+	if l.ch != 0 {
+		return string(l.input[l.position])
+	}
+	return ""
 }
 
 func (l *Lexer) readIdentifier() string {
