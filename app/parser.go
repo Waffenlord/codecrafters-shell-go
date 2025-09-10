@@ -147,7 +147,7 @@ func newToken(t TokenType, l string) Token {
 }
 
 
-func parseInput(i string) []string {
+func parseInput(i string) (string, []string) {
 	parts := []Token{}
 	l := newLexer(i)
 	currentToken := l.nextToken()
@@ -155,10 +155,14 @@ func parseInput(i string) []string {
 		parts = append(parts, currentToken)
 		currentToken = l.nextToken()
 	}
-	// remove echo command
+	
+	if len(parts) == 0 {
+		return "", nil
+	}
+	commandToken := parts[0]
 	cleanedParts := parts[1:]
 	if len(cleanedParts) < 1 {
-		return nil
+		return commandToken.literal, nil
 	}
 	
 	result := []string{}
@@ -179,6 +183,6 @@ func parseInput(i string) []string {
 		}
 	}
 	
-	return result
+	return commandToken.literal, result
 
 }

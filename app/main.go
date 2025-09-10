@@ -31,7 +31,7 @@ func main() {
 			if path != "" {
 				out, err := exec.Command(commandData.command, filterSpacesFromParams(commandData.params)...).Output()
 				if err != nil {
-					log.Fatal(err)
+					log.Fatal(err, string(out))
 				}
 				fmt.Print(string(out))
 				continue
@@ -49,13 +49,7 @@ func cleanCommand(c string) commandReceived {
 	if len(commandCleaned) == 0 {
 		return commandReceived{}
 	}
-
-	commandParts := strings.Split(commandCleaned, " ")
-	command := strings.Trim(commandParts[0], " ")
-	var commandParams []string
-	if len(commandParts) > 1 {
-		commandParams = parseInput(commandCleaned)
-	}
+	command, commandParams := parseInput(commandCleaned)
 
 	return commandReceived{
 		command,

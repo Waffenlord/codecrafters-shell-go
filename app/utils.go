@@ -78,9 +78,17 @@ func getCommandDirectoryAsync(c string) string {
 
 func filterSpacesFromParams(params []string) []string {
 	filtered := []string{}
+	var currentArg string
 	for _, p := range params {
-		if p != " " {
-			filtered = append(filtered, p)
+		if p == " " {
+			filtered = append(filtered, currentArg)
+			currentArg = ""
+			continue
 		}
+		currentArg += p
 	}
-	return filtered}
+	if currentArg != "" {
+		filtered = append(filtered, currentArg)
+	}
+	return filtered
+}
