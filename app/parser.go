@@ -1,5 +1,9 @@
 package main
 
+import (
+	"strings"
+)
+
 type TokenType string
 
 const (
@@ -106,14 +110,28 @@ func (l *Lexer) readSingleQuote() string {
 }
 
 func (l *Lexer) readDoubleQuote() string {
-	position := l.position + 1
+	selectedStrings := []string{}
 	for {
 		l.readChar()
 		if l.ch == 0 || l.ch == '"' {
 			break
 		}
+		if l.ch == '\\' {
+			l.readChar()
+			switch l.ch {
+			case '\\':
+				selectedStrings = append(selectedStrings, "\\")
+				continue
+			case '"':
+				selectedStrings = append(selectedStrings, "\"")
+				continue
+			default:
+				selectedStrings = append(selectedStrings, "\\")
+			}
+		}
+		selectedStrings = append(selectedStrings, string(l.ch))
 	}
-	return l.input[position: l.position]
+	return strings.Join(selectedStrings, "")
 }
 
 func isLiteral(ch byte) bool {
