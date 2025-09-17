@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"sync"
@@ -92,3 +93,30 @@ func filterSpacesFromParams(params []string) []string {
 	}
 	return filtered
 }
+
+func hasOutputRedirection(params []string) ([]string, []string, bool, error) {
+	var commandParams []string
+	var destination []string
+
+	for i, p := range params {
+		if p == ">" || p == "1>" {
+			if i + 1 >= len(params) {
+				return nil, nil, false, errors.New("invalid destination")
+			}
+			commandParams = params[:i]
+			destination = params[i+1:]
+			return commandParams, destination, true, nil 
+		}
+	}
+	return params, nil, false, nil
+}
+
+func writeContentTofile(content []byte, destination string) error {
+	err := os.WriteFile(destination, content, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+

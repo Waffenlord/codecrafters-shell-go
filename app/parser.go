@@ -7,15 +7,16 @@ import (
 type TokenType string
 
 const (
-	IDENT = "IDENT"
-	STRING = "STRING"
-	NUMBER = "NUMBER"
-	SPACE = "SPACE"
-	DOT = "DOT"
-	EOF = "EOF"
-	FORWARD = "FORWARD"
-	BACKWARD = "BACKWARD"
-	HOME = "HOME"
+	IDENT       = "IDENT"
+	STRING      = "STRING"
+	NUMBER      = "NUMBER"
+	SPACE       = "SPACE"
+	DOT         = "DOT"
+	EOF         = "EOF"
+	FORWARD     = "FORWARD"
+	BACKWARD    = "BACKWARD"
+	HOME        = "HOME"
+	REDIRECTION = "REDIRECTION"
 )
 
 type Token struct {
@@ -46,7 +47,6 @@ func (l *Lexer) readChar() {
 	l.readposition++
 }
 
-
 func (l *Lexer) nextToken() Token {
 	var token Token
 
@@ -68,6 +68,8 @@ func (l *Lexer) nextToken() Token {
 		token = newToken(BACKWARD, content)
 	case '~':
 		token = newToken(HOME, "~")
+	case '>':
+		token = newToken(REDIRECTION, ">")
 	case 0:
 		token = newToken(EOF, "")
 	default:
@@ -76,7 +78,12 @@ func (l *Lexer) nextToken() Token {
 			token = newToken(IDENT, content)
 			return token
 		}
-		
+		if isDigit(l.ch) {
+			content := l.readNumber()
+			token = newToken(NUMBER, content)
+			return token
+		}
+
 	}
 	l.readChar()
 	return token
@@ -95,7 +102,15 @@ func (l *Lexer) readIdentifier() string {
 	for isLiteral(l.ch) {
 		l.readChar()
 	}
-	return l.input[position: l.position]
+	return l.input[position:l.position]
+}
+
+func (l *Lexer) readNumber() string {
+	position := l.position
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[position:l.position]
 }
 
 func (l *Lexer) readSingleQuote() string {
@@ -106,7 +121,7 @@ func (l *Lexer) readSingleQuote() string {
 			break
 		}
 	}
-	return l.input[position: l.position]
+	return l.input[position:l.position]
 }
 
 func (l *Lexer) readDoubleQuote() string {
@@ -136,16 +151,18 @@ func (l *Lexer) readDoubleQuote() string {
 
 func isLiteral(ch byte) bool {
 	return ('a' <= ch && ch <= 'z') ||
-	       ('A' <= ch && ch <= 'Z') ||
-	       ('0' <= ch && ch <= '9') ||
-	       ch == '_' ||
-	       ch == '-'
+		('A' <= ch && ch <= 'Z') ||
+		ch == '_' ||
+		ch == '-'
+}
+
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
 }
 
 func newToken(t TokenType, l string) Token {
 	return Token{tType: t, literal: l}
 }
-
 
 func parseInput(i string) (string, []string) {
 	parts := []Token{}
@@ -155,16 +172,24 @@ func parseInput(i string) (string, []string) {
 		parts = append(parts, currentToken)
 		currentToken = l.nextToken()
 	}
-	
+
 	if len(parts) == 0 {
 		return "", nil
 	}
-	commandToken := parts[0]
-	cleanedParts := parts[1:]
-	if len(cleanedParts) < 1 {
-		return commandToken.literal, nil
+	var firstSpaceIndex int
+	commandLiteral := ""
+	for j, t := range parts {
+		if t.tType == SPACE {
+			firstSpaceIndex = j
+			break
+		}
+		commandLiteral += t.literal
 	}
-	
+	cleanedParts := parts[firstSpaceIndex:]
+	if len(cleanedParts) < 1 {
+		return commandLiteral, nil
+	}
+
 	result := []string{}
 	var previousType TokenType
 	for i, t := range cleanedParts {
@@ -177,12 +202,20 @@ func parseInput(i string) (string, []string) {
 				result = append(result, t.literal)
 			}
 			previousType = t.tType
+		case REDIRECTION:
+			if previousType == NUMBER {
+				result[len(result)-1] = result[len(result)-1] + t.literal
+				previousType = t.tType
+				continue
+			}
+			result = append(result, t.literal)
+			previousType = t.tType
 		default:
 			result = append(result, t.literal)
 			previousType = t.tType
 		}
 	}
-	
-	return commandToken.literal, result
+
+	return commandLiteral, result
 
 }

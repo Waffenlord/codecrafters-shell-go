@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 type commandType string
@@ -17,7 +18,7 @@ type commandMenu struct {
 }
 
 type command interface {
-	execute(param string)
+	execute(param string) string
 	getCategory() commandType
 }
 
@@ -49,13 +50,14 @@ type exit struct {
 	category commandType
 }
 
-func (e exit) execute(param string) {
+func (e exit) execute(param string) string {
 	if param == "0" {
 		os.Exit(0)
 	}
 
 	fmt.Println("invalid parameter")
 	os.Exit(1)
+	return ""
 }
 
 func (e exit) getCategory() commandType {
@@ -67,8 +69,8 @@ type echo struct {
 	category commandType
 }
 
-func (e echo) execute(param string) {
-	fmt.Println(param)
+func (e echo) execute(param string) string {
+	return param
 }
 
 func (e echo) getCategory() commandType {
@@ -80,18 +82,16 @@ type typeC struct {
 	category commandType
 }
 
-func (t typeC) execute(param string) {
+func (t typeC) execute(param string) string {
 	c, ok := commandsMap[param]
 	if !ok {
 		path := getCommandDirectoryAsync(param)
 		if path != "" {
-			fmt.Printf("%s is %s\n", param, path)
-			return
+			return fmt.Sprintf("%s is %s\n", param, path)
 		}
-		fmt.Printf("%s: not found\n", param)
-		return
+		return fmt.Sprintf("%s: not found\n", param)
 	}
-	fmt.Printf("%s is a shell %s\n", param, c.getCategory())
+	return fmt.Sprintf("%s is a shell %s\n", param, c.getCategory())
 }
 
 func (t typeC) getCategory() commandType {
@@ -103,12 +103,12 @@ type pwd struct {
 	category commandType
 }
 
-func (p pwd) execute(param string) {
+func (p pwd) execute(param string) string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Fatal("error finding path")
 	}
-	fmt.Println(currentDir)
+	return fmt.Sprintln(currentDir)
 }
 
 func (p pwd) getCategory() commandType {
@@ -120,7 +120,7 @@ type cd struct {
 	category commandType
 }
 
-func (c cd) execute(param string) {
+func (c cd) execute(param string) string {
 	if param == "~" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
@@ -130,17 +130,18 @@ func (c cd) execute(param string) {
 		if err != nil {
 			log.Fatal("error changing to home directory")
 		}
-		return
+		return ""
 	}
 	_, err := os.Stat(param)
 	if err != nil {
 		fmt.Printf("cd: %s: No such file or directory\n", param)
-		return
+		return ""
 	}
 	err = os.Chdir(param)
 	if err != nil {
 		log.Fatal("error changing path")
 	}
+	return ""
 }
 
 func (c cd) getCategory() commandType {
@@ -152,4 +153,27 @@ func newCommandMenu() commandMenu {
 		commands: commandsMap,
 	}
 	return menu
+}
+
+func processBuiltInCommand(c command, params []string) {
+	commandParams, destinationSlice, hasRedirection, err := hasOutputRedirection(params)
+	if err != nil {
+		log.Fatal(err)
+	}
+	input := strings.Join(commandParams, "")
+	output := c.execute(input)
+	if output != "" {
+		if hasRedirection {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := writeContentTofile([]byte(output), destination)
+			if err != nil {
+				log.Fatal(err)
+			}
+			return
+		}
+		fmt.Print(output)
+		if output[len(output)-1] != '\n' {
+			fmt.Println()
+		}
+	}
 }
