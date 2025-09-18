@@ -30,7 +30,7 @@ func main() {
 			path := getCommandDirectoryAsync(commandData.command)
 			if path != "" {
 				paramsWithoutSpaces := filterSpacesFromParams(commandData.params)
-				commandParams, destinationSlice, hasRedirection, err := hasOutputRedirection(paramsWithoutSpaces)
+				commandParams, destinationSlice, hasRedirection,t, err := hasOutputRedirection(paramsWithoutSpaces)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -46,27 +46,12 @@ func main() {
 				stdoutBytes, _ := io.ReadAll(stdoutPipe)
 				stderrBytes, _ := io.ReadAll(stderrPipe)
 
-				err = cmd.Wait()
+				cmd.Wait()
 
 				stdout := string(stdoutBytes)
 				stderr := string(stderrBytes)
 
-				if err != nil {
-					fmt.Print(stderr)
-				}
-				if hasRedirection {
-					destination := destinationSlice[0]
-					err := writeContentTofile(stdoutBytes, destination)
-					if err != nil {
-						log.Fatal(err)
-					}
-				} else {
-					fmt.Print(stdout)
-					if stdout[len(stdout)-1] != '\n' {
-						fmt.Println()
-					}
-				}
-
+				processExternalCommandOutput(stdout, stdoutBytes, stderr, stderrBytes, destinationSlice, hasRedirection, t)
 				continue
 			}
 			fmt.Println(commandTyped[:len(commandTyped)-1] + ": command not found")

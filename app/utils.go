@@ -2,11 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
 )
-
 
 func getPathDirectories() []string {
 	pathValue := os.Getenv("PATH")
@@ -37,7 +38,6 @@ func getCommandDirectory(c string) string {
 }
 */
 
-
 // Async implementation
 func getCommandDirectoryAsync(c string) string {
 	result := make(chan string)
@@ -63,7 +63,7 @@ func getCommandDirectoryAsync(c string) string {
 		}(currentPath)
 	}
 
-	go func(){
+	go func() {
 		wg.Wait()
 		once.Do(func() {
 			close(result)
@@ -71,7 +71,7 @@ func getCommandDirectoryAsync(c string) string {
 	}()
 
 	for path := range result {
-		return path 
+		return path
 	}
 
 	return ""
@@ -94,21 +94,35 @@ func filterSpacesFromParams(params []string) []string {
 	return filtered
 }
 
-func hasOutputRedirection(params []string) ([]string, []string, bool, error) {
+type redirectionType string
+
+const (
+	successOut redirectionType = "successOut"
+	errorOut   redirectionType = "errorOut"
+)
+
+func hasOutputRedirection(params []string) ([]string, []string, bool, redirectionType, error) {
 	var commandParams []string
 	var destination []string
 
 	for i, p := range params {
-		if p == ">" || p == "1>" {
-			if i + 1 >= len(params) {
-				return nil, nil, false, errors.New("invalid destination")
+		if p == ">" || p == "1>" || p == "2>" {
+			if i+1 >= len(params) {
+				return nil, nil, false, "", errors.New("invalid destination")
 			}
 			commandParams = params[:i]
 			destination = params[i+1:]
-			return commandParams, destination, true, nil 
+			var redirType redirectionType
+			switch p {
+			case "2>":
+				redirType = errorOut
+			default:
+				redirType = successOut
+			}
+			return commandParams, destination, true, redirType, nil
 		}
 	}
-	return params, nil, false, nil
+	return params, nil, false, "", nil
 }
 
 func writeContentTofile(content []byte, destination string) error {
@@ -119,4 +133,47 @@ func writeContentTofile(content []byte, destination string) error {
 	return nil
 }
 
+func processExternalCommandOutput(
+	successString string,
+	successBytes []byte,
+	errorString string,
+	errorBytes []byte,
+	destinationSlice []string,
+	hasRedirection bool,
+	rT redirectionType,
+) {
+	if hasRedirection && rT == successOut {
+		destination := destinationSlice[0]
+		err := writeContentTofile(successBytes, destination)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(errorString) > 0 {
+			fmt.Print(errorString)
+			if len(errorString) > 0 && errorString[len(errorString)-1] != '\n' {
+				fmt.Println()
+			}
+		}
+		return
+	}
 
+	if hasRedirection && rT == errorOut {
+		destination := destinationSlice[0]
+		err := writeContentTofile(errorBytes, destination)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	fmt.Print(successString)
+	if len(successString) > 0 && successString[len(successString)-1] != '\n' {
+		fmt.Println()
+	}
+	if len(errorString) > 0 && !hasRedirection && rT != errorOut {
+		fmt.Print(errorString)
+		if len(errorString) > 0 && errorString[len(errorString)-1] != '\n' {
+			fmt.Println()
+		}
+	}
+
+}

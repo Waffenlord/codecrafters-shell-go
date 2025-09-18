@@ -156,14 +156,14 @@ func newCommandMenu() commandMenu {
 }
 
 func processBuiltInCommand(c command, params []string) {
-	commandParams, destinationSlice, hasRedirection, err := hasOutputRedirection(params)
+	commandParams, destinationSlice, hasRedirection, t, err := hasOutputRedirection(params)
 	if err != nil {
 		log.Fatal(err)
 	}
 	input := strings.Join(commandParams, "")
 	output := c.execute(input)
 	if output != "" {
-		if hasRedirection {
+		if hasRedirection && t == successOut {
 			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
 			err := writeContentTofile([]byte(output), destination)
 			if err != nil {
@@ -171,8 +171,15 @@ func processBuiltInCommand(c command, params []string) {
 			}
 			return
 		}
+		if hasRedirection && t == errorOut {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := writeContentTofile([]byte(""), destination)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 		fmt.Print(output)
-		if output[len(output)-1] != '\n' {
+		if len(output) > 0 && output[len(output)-1] != '\n' {
 			fmt.Println()
 		}
 	}
