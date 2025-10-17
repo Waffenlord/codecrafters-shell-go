@@ -203,7 +203,7 @@ func parseInput(i string) (string, []string) {
 			}
 			previousType = t.tType
 		case REDIRECTION:
-			if previousType == NUMBER {
+			if previousType == NUMBER || previousType == REDIRECTION {
 				result[len(result)-1] = result[len(result)-1] + t.literal
 				previousType = t.tType
 				continue

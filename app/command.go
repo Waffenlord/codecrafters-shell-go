@@ -156,14 +156,14 @@ func newCommandMenu() commandMenu {
 }
 
 func processBuiltInCommand(c command, params []string) {
-	commandParams, destinationSlice, hasRedirection, t, err := hasOutputRedirection(params)
+	commandParams, destinationSlice, actionT, redirectionT, err := hasOutputRedirection(params)
 	if err != nil {
 		log.Fatal(err)
 	}
 	input := strings.Join(commandParams, "")
 	output := c.execute(input)
 	if output != "" {
-		if hasRedirection && t == successOut {
+		if actionT == redirectFile && redirectionT == successOut {
 			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
 			err := writeContentTofile([]byte(output), destination)
 			if err != nil {
@@ -171,13 +171,31 @@ func processBuiltInCommand(c command, params []string) {
 			}
 			return
 		}
-		if hasRedirection && t == errorOut {
+		if actionT == redirectFile && redirectionT == errorOut {
 			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
 			err := writeContentTofile([]byte(""), destination)
 			if err != nil {
 				log.Fatal(err)
 			}
 		}
+
+		if actionT == appendFile && redirectionT == successOut {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := appendContentToFile(output, destination)
+			if err != nil {
+				log.Fatal(err)
+			}
+			return
+		}
+
+		if actionT == appendFile && redirectionT == errorOut {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := appendContentToFile("", destination)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
 		fmt.Print(output)
 		if len(output) > 0 && output[len(output)-1] != '\n' {
 			fmt.Println()

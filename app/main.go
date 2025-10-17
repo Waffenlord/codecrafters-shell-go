@@ -30,7 +30,7 @@ func main() {
 			path := getCommandDirectoryAsync(commandData.command)
 			if path != "" {
 				paramsWithoutSpaces := filterSpacesFromParams(commandData.params)
-				commandParams, destinationSlice, hasRedirection,t, err := hasOutputRedirection(paramsWithoutSpaces)
+				commandParams, destinationSlice, actionT, redirectionT, err := hasOutputRedirection(paramsWithoutSpaces)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -51,7 +51,7 @@ func main() {
 				stdout := string(stdoutBytes)
 				stderr := string(stderrBytes)
 
-				processExternalCommandOutput(stdout, stdoutBytes, stderr, stderrBytes, destinationSlice, hasRedirection, t)
+				processExternalCommandOutput(stdout, stdoutBytes, stderr, stderrBytes, destinationSlice, actionT, redirectionT)
 				continue
 			}
 			fmt.Println(commandTyped[:len(commandTyped)-1] + ": command not found")

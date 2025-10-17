@@ -101,14 +101,21 @@ const (
 	errorOut   redirectionType = "errorOut"
 )
 
-func hasOutputRedirection(params []string) ([]string, []string, bool, redirectionType, error) {
+type actionType string 
+
+const (
+	redirectFile actionType = "redirect"
+	appendFile actionType = "append"
+)
+
+func hasOutputRedirection(params []string) ([]string, []string, actionType, redirectionType, error) {
 	var commandParams []string
 	var destination []string
 
 	for i, p := range params {
 		if p == ">" || p == "1>" || p == "2>" {
 			if i+1 >= len(params) {
-				return nil, nil, false, "", errors.New("invalid destination")
+				return nil, nil, "", "", errors.New("invalid destination")
 			}
 			commandParams = params[:i]
 			destination = params[i+1:]
@@ -119,15 +126,56 @@ func hasOutputRedirection(params []string) ([]string, []string, bool, redirectio
 			default:
 				redirType = successOut
 			}
-			return commandParams, destination, true, redirType, nil
+			return commandParams, destination, redirectFile, redirType, nil
+		}
+		if p == ">>" || p == "1>>" || p == "2>>" {
+			if i+1 >= len(params) {
+				return nil, nil, "", "", errors.New("invalid destination")
+			}
+			commandParams = params[:i]
+			destination = params[i+1:]
+			var redirType redirectionType
+			switch p {
+			case "2>>":
+				redirType = errorOut
+			default:
+				redirType = successOut
+			}
+			return commandParams, destination, appendFile, redirType, nil
 		}
 	}
-	return params, nil, false, "", nil
+	return params, nil, "", "", nil
 }
 
 func writeContentTofile(content []byte, destination string) error {
 	err := os.WriteFile(destination, content, 0644)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func appendContentToFile(content string, destination string) error {
+	fileInfo, err := os.Stat(destination)
+	hasContent := false
+	if err == nil && fileInfo.Size() > 0 {
+		hasContent = true
+	}
+
+	f, err := os.OpenFile(destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if hasContent {
+		if _, err := f.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+
+
+	if _, err := f.WriteString(content); err != nil {
 		return err
 	}
 	return nil
@@ -139,10 +187,10 @@ func processExternalCommandOutput(
 	errorString string,
 	errorBytes []byte,
 	destinationSlice []string,
-	hasRedirection bool,
+	actionT actionType,
 	rT redirectionType,
 ) {
-	if hasRedirection && rT == successOut {
+	if actionT == redirectFile && rT == successOut {
 		destination := destinationSlice[0]
 		err := writeContentTofile(successBytes, destination)
 		if err != nil {
@@ -157,9 +205,32 @@ func processExternalCommandOutput(
 		return
 	}
 
-	if hasRedirection && rT == errorOut {
+	if actionT == redirectFile && rT == errorOut {
 		destination := destinationSlice[0]
 		err := writeContentTofile(errorBytes, destination)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if actionT == appendFile && rT == successOut {
+		destination := destinationSlice[0]
+		err := appendContentToFile(successString, destination)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(errorString) > 0 {
+			fmt.Print(errorString)
+			if len(errorString) > 0 && errorString[len(errorString)-1] != '\n' {
+				fmt.Println()
+			}
+		}
+		return
+	}
+
+	if actionT == appendFile && rT == errorOut {
+		destination := destinationSlice[0]
+		err := appendContentToFile(errorString, destination)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -169,7 +240,7 @@ func processExternalCommandOutput(
 	if len(successString) > 0 && successString[len(successString)-1] != '\n' {
 		fmt.Println()
 	}
-	if len(errorString) > 0 && !hasRedirection && rT != errorOut {
+	if len(errorString) > 0 && actionT == "" && rT != errorOut {
 		fmt.Print(errorString)
 		if len(errorString) > 0 && errorString[len(errorString)-1] != '\n' {
 			fmt.Println()
