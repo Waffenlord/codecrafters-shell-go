@@ -174,8 +174,13 @@ func appendContentToFile(content string, destination string) error {
 		}
 	}
 
+	cleanContent := content
+	if len(content) > 0 && content[len(content) - 1] == '\n' {
+		cleanContent = content[:len(content) - 1]
+	}
 
-	if _, err := f.WriteString(content); err != nil {
+
+	if _, err := f.WriteString(cleanContent); err != nil {
 		return err
 	}
 	return nil
