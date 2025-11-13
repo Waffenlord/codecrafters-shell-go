@@ -95,6 +95,7 @@ func main() {
 			if len(current) >= 3 {
 				matches := commandMenu.prefixTrie.prefixSearch(current)
 				if len(matches) == 0 {
+					fmt.Print("\x07")
 					continue
 				}
 				if len(matches) == 1 {
