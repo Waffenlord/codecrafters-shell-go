@@ -169,16 +169,12 @@ func appendContentToFile(content string, destination string) error {
 	defer f.Close()
 
 	if hasContent {
-		if _, err := f.WriteString("\n"); err != nil {
+		if _, err := f.WriteString("\r\n"); err != nil {
 			return err
 		}
 	}
 
-	cleanContent := content
-	if len(content) > 0 && content[len(content) - 1] == '\n' {
-		cleanContent = content[:len(content) - 1]
-	}
-
+	cleanContent := removeNewLines(content)
 
 	if _, err := f.WriteString(cleanContent); err != nil {
 		return err
@@ -197,22 +193,19 @@ func processExternalCommandOutput(
 ) {
 	if actionT == redirectFile && rT == successOut {
 		destination := destinationSlice[0]
-		err := writeContentTofile(successBytes, destination)
+		err := writeContentTofile([]byte(transformNewLines(successString)), destination)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if len(errorString) > 0 {
-			fmt.Print(errorString)
-			if len(errorString) > 0 && errorString[len(errorString)-1] != '\n' {
-				fmt.Println()
-			}
+			fmt.Printf("\r\n%s", removeNewLines(errorString))
 		}
 		return
 	}
 
 	if actionT == redirectFile && rT == errorOut {
 		destination := destinationSlice[0]
-		err := writeContentTofile(errorBytes, destination)
+		err := writeContentTofile([]byte(transformNewLines(errorString)), destination)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -225,10 +218,7 @@ func processExternalCommandOutput(
 			log.Fatal(err)
 		}
 		if len(errorString) > 0 {
-			fmt.Print(errorString)
-			if len(errorString) > 0 && errorString[len(errorString)-1] != '\n' {
-				fmt.Println()
-			}
+			fmt.Printf("\r\n%s", removeNewLines(errorString))
 		}
 		return
 	}
@@ -240,16 +230,25 @@ func processExternalCommandOutput(
 			log.Fatal(err)
 		}
 	}
-
-	fmt.Print(successString)
-	if len(successString) > 0 && successString[len(successString)-1] != '\n' {
-		fmt.Println()
+	if len(successString) > 0 {
+		fmt.Printf("\r\n%s", transformNewLines(successString))
 	}
 	if len(errorString) > 0 && actionT == "" && rT != errorOut {
-		fmt.Print(errorString)
-		if len(errorString) > 0 && errorString[len(errorString)-1] != '\n' {
-			fmt.Println()
-		}
+		fmt.Println("Executing error")
+		fmt.Printf("\r%s\r\n", errorString)
 	}
 
+}
+
+
+func removeNewLines(content string) string {
+	if (len(content) > 0 && content[len(content) - 1] == '\n') {
+		return content[:len(content) - 1]
+	}
+	return content
+}
+
+
+func transformNewLines(content string) string {
+	return removeNewLines(strings.ReplaceAll(content, "\n", "\r\n"))
 }
