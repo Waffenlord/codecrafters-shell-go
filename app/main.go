@@ -100,7 +100,7 @@ func main() {
 				if len(matches) == 1 {
 					currentMatch := matches[0]
 					buffer.Reset()
-					buffer.WriteString(currentMatch)
+					buffer.WriteString(currentMatch + " ")
 					fmt.Print("\033[2K\r")
 					fmt.Printf("$ %s ", currentMatch)
 				}
