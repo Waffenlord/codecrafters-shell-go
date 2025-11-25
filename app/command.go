@@ -66,9 +66,9 @@ func (e exit) execute(commandArgs execArgs) string {
 		os.Exit(0)
 	}
 
-	fmt.Printf("\r\ninvalid parameter\r\n")
+	//fmt.Printf("\r\ninvalid parameter\r\n")
 	term.Restore(int(os.Stdin.Fd()), commandArgs.termOldState)
-	os.Exit(1)
+	os.Exit(0)
 	return ""
 }
 
@@ -226,6 +226,11 @@ func getCommandsTrie(builtin map[string]command) *trieNode {
 	// Insert builtin commands
 	for k := range builtin {
 		t.insert(k)
+	}
+
+	pathFiles := getFileNamesFromDirectories()
+	for _, file := range pathFiles {
+		t.insert(file)
 	}
 
 	return t

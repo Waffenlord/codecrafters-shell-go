@@ -15,6 +15,25 @@ func getPathDirectories() []string {
 	return directories
 }
 
+func getFileNamesFromDirectories() []string {
+	dirs := getPathDirectories()
+	filenames := []string{}
+
+	for _,path := range dirs {
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			continue
+		}
+		for _, entrie := range entries {
+			if !entrie.IsDir() {
+				filenames = append(filenames, entrie.Name())
+			}
+		}
+
+	}
+	return filenames
+}
+
 func isFileExecutable(info os.FileInfo) bool {
 	mode := info.Mode()
 	return mode.IsRegular() && (mode&0111 != 0) // any executable bit set
