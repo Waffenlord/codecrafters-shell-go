@@ -69,6 +69,9 @@ func findWordMatches(t *trieNode, word string) []string {
 		stack = stack[:len(stack)-1]
 		if currentNode.trie == nil {
 			wordsFound = append(wordsFound, currentNode.currentWord)
+			if (len(stack) > 0) {
+				currentWord = stack[len(stack) - 1].currentWord
+			}
 			continue
 		}
 		currentWord += currentNode.trie.char

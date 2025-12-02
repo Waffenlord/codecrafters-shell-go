@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"golang.org/x/term"
@@ -30,6 +31,7 @@ func main() {
 
 	var buffer strings.Builder
 	input := make([]byte, 1)
+	tabCounter := 0
 	for {
 		n, err := os.Stdin.Read(input)
 		if err != nil || n == 0 {
@@ -104,6 +106,20 @@ func main() {
 					buffer.WriteString(currentMatch + " ")
 					fmt.Print("\033[2K\r")
 					fmt.Printf("$ %s ", currentMatch)
+				}
+				if len(matches) > 1 {
+					if tabCounter == 0 {
+						fmt.Print("\x07")
+						tabCounter += 1
+						continue
+					} else {
+						slices.Sort(matches)
+						currentMatch := strings.Join(matches, "  ")
+						fmt.Print("\r\n")
+						fmt.Print(currentMatch + "\r\n")
+						fmt.Printf("$ %s", buffer.String())
+						tabCounter = 0
+					}
 				}
 			}
 
