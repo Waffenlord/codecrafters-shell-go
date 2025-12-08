@@ -95,3 +95,42 @@ func createTrie() *trieNode {
 		children: make(map[string]*trieNode),
 	}
 }
+
+
+func findLongestCommonPrefix(options []string) string {
+	minLen := len(options[0])
+
+	for _, o := range options {
+		minLen = min(minLen, len(o))
+	}
+
+	low, high := 0, minLen - 1
+	prefixLen := 0
+
+	for low <= high {
+		mid := (low + high) / 2
+		if checkEquality(options, low, mid) {
+			prefixLen = mid + 1
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
+
+	}
+	return options[0][:prefixLen]
+
+}
+
+func checkEquality(options []string, low int, high int) bool {
+	for i := range options {
+		if i == 0 {
+			continue
+		}
+		for j := low; j <= high; j++ {
+			if options[i][j] != options[0][j] {
+				return false 
+			}
+		}
+	}
+	return true
+}

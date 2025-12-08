@@ -108,6 +108,14 @@ func main() {
 					fmt.Printf("$ %s ", currentMatch)
 				}
 				if len(matches) > 1 {
+					commonPrefix := findLongestCommonPrefix(matches)
+					if len(commonPrefix) > 0 && buffer.String() != commonPrefix {
+						buffer.Reset()
+						buffer.WriteString(commonPrefix)
+						fmt.Print("\033[2K\r")
+						fmt.Printf("$ %s", commonPrefix)
+						continue
+					}
 					if tabCounter == 0 {
 						fmt.Print("\x07")
 						tabCounter += 1
