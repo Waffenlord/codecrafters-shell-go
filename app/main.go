@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -20,7 +21,7 @@ type commandReceived struct {
 const terminalChar = "$ "
 
 func main() {
-	commandMenu := newCommandMenu()
+	commandMenu := newBuiltInMenu()
 	fmt.Fprint(os.Stdout, terminalChar)
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -51,7 +52,31 @@ func main() {
 				fmt.Print(terminalChar)
 				continue
 			}
-			commandData := cleanCommand(commandTyped)
+			commands, hasPipeline := parseInput(commandTyped)
+			if len(commands) == 0 {
+				fmt.Printf("\r\n%s: command not found\r\n", commandTyped)
+				buffer.Reset()
+				fmt.Print(terminalChar)
+				continue
+			}
+
+			if hasPipeline {
+				fmt.Print("\r\n")
+				term.Restore(int(os.Stdin.Fd()), oldState)
+				err := processPipeline(commands, commandMenu, oldState)
+				if err != nil {
+					log.Fatal(err)
+				}
+				oldState, err = term.MakeRaw(int(os.Stdin.Fd()))
+				if err != nil {
+					panic(err)
+				}
+				buffer.Reset()
+				fmt.Printf("\r%s", terminalChar)
+				continue
+			}
+
+			commandData := commands[0]
 			builtInCommand, ok := commandMenu.commands[commandData.command]
 			if !ok {
 				path := getCommandDirectoryAsync(commandData.command)
@@ -61,22 +86,38 @@ func main() {
 					if err != nil {
 						log.Fatal(err)
 					}
+
 					cmd := exec.Command(commandData.command, commandParams...)
 
-					stdoutPipe, _ := cmd.StdoutPipe()
-					stderrPipe, _ := cmd.StderrPipe()
+					var stdoutBuf, stderrBuf bytes.Buffer
+
+					stdoutPipe, err := cmd.StdoutPipe()
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					stderrPipe, err := cmd.StderrPipe()
+					if err != nil {
+						log.Fatal(err)
+					}
 
 					if err := cmd.Start(); err != nil {
 						log.Fatal(err)
 					}
 
-					stdoutBytes, _ := io.ReadAll(stdoutPipe)
-					stderrBytes, _ := io.ReadAll(stderrPipe)
+					stdoutWriter := io.Writer(&stdoutBuf)
+					stderrWriter := io.Writer(&stderrBuf)
+
+					go io.Copy(stdoutWriter, stdoutPipe)
+					go io.Copy(stderrWriter, stderrPipe)
 
 					cmd.Wait()
 
-					stdout := string(stdoutBytes)
-					stderr := string(stderrBytes)
+					stdoutBytes := stdoutBuf.Bytes()
+					stderrBytes := stderrBuf.Bytes()
+
+					stdout := stdoutBuf.String()
+					stderr := stderrBuf.String()
 
 					processExternalCommandOutput(stdout, stdoutBytes, stderr, stderrBytes, destinationSlice, actionT, redirectionT)
 					buffer.Reset()
@@ -88,7 +129,26 @@ func main() {
 				fmt.Print(terminalChar)
 				continue
 			}
-			processBuiltInCommand(builtInCommand, commandData.params, oldState)
+
+			var output bytes.Buffer
+			commandParams, destinationSlice, actionT, redirectionT, err := hasOutputRedirection(commandData.params)
+			if err != nil {
+				term.Restore(int(os.Stdin.Fd()), oldState)
+				log.Fatal(err)
+			}
+			err = builtInCommand(os.Stdin, &output, commandParams, oldState)
+			if err != nil {
+				term.Restore(int(os.Stdin.Fd()), oldState)
+				log.Fatal(err)
+			}
+			shouldPrint, err := checkRedirection(output, destinationSlice, actionT, redirectionT, oldState)
+			if err != nil {
+				term.Restore(int(os.Stdin.Fd()), oldState)
+				log.Fatal(err)
+			}
+			if shouldPrint && output.Len() > 0 {
+				fmt.Printf("\r\n%s", output.String())
+			}
 			buffer.Reset()
 			fmt.Printf("\r\n%s", terminalChar)
 
@@ -148,13 +208,4 @@ func main() {
 		}
 	}
 
-}
-
-func cleanCommand(c string) commandReceived {
-	command, commandParams := parseInput(c)
-
-	return commandReceived{
-		command,
-		commandParams,
-	}
 }

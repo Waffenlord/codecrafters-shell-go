@@ -17,6 +17,7 @@ const (
 	BACKWARD    = "BACKWARD"
 	HOME        = "HOME"
 	REDIRECTION = "REDIRECTION"
+	PIPE = "PIPE"
 )
 
 type Token struct {
@@ -70,6 +71,8 @@ func (l *Lexer) nextToken() Token {
 		token = newToken(HOME, "~")
 	case '>':
 		token = newToken(REDIRECTION, ">")
+	case '|':
+		token = newToken(PIPE, "|")
 	case 0:
 		token = newToken(EOF, "")
 	default:
@@ -164,30 +167,72 @@ func newToken(t TokenType, l string) Token {
 	return Token{tType: t, literal: l}
 }
 
-func parseInput(i string) (string, []string) {
+func parseInput(i string) ([]commandReceived, bool) {
 	parts := []Token{}
 	l := newLexer(i)
 	currentToken := l.nextToken()
+	hasPipeline := false
 	for currentToken.tType != EOF {
+		if currentToken.tType == PIPE {
+			hasPipeline = true
+		}
 		parts = append(parts, currentToken)
 		currentToken = l.nextToken()
 	}
 
 	if len(parts) == 0 {
-		return "", nil
+		return nil, false
 	}
+
+	start := 0
+	end := 0
+	commands := []commandReceived{}
+
+	for start < len(parts) && end < len(parts) {
+		currentToken := parts[end]
+		if currentToken.tType == PIPE {
+			parsedCommand := parseCommand(parts[start:end])
+			commands = append(commands, parsedCommand)
+			start = end + 1
+			end = start
+		}
+		end += 1
+	}
+
+	if start < len(parts) {
+		parsedCommand := parseCommand(parts[start:])
+		commands = append(commands, parsedCommand)
+	}
+
+	return commands, hasPipeline
+}
+
+
+func parseCommand(parts []Token) commandReceived {
 	var firstSpaceIndex int
 	commandLiteral := ""
 	for j, t := range parts {
+		if j == 0 && t.tType == SPACE {
+			continue
+		}
 		if t.tType == SPACE {
 			firstSpaceIndex = j
 			break
 		}
 		commandLiteral += t.literal
 	}
+	if firstSpaceIndex == 0 {
+		return commandReceived{
+			command: commandLiteral,
+			params: nil,
+		}
+	}
 	cleanedParts := parts[firstSpaceIndex:]
 	if len(cleanedParts) < 1 {
-		return commandLiteral, nil
+		return commandReceived{
+			command: commandLiteral,
+			params: nil,
+		}
 	}
 
 	result := []string{}
@@ -216,6 +261,9 @@ func parseInput(i string) (string, []string) {
 		}
 	}
 
-	return commandLiteral, result
+	return commandReceived{
+		command: commandLiteral,
+		params: result,
+	}
 
 }

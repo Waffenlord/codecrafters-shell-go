@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
 	"sync"
+
+	"golang.org/x/term"
 )
 
 func getPathDirectories() []string {
@@ -19,7 +23,7 @@ func getFileNamesFromDirectories() []string {
 	dirs := getPathDirectories()
 	filenames := []string{}
 
-	for _,path := range dirs {
+	for _, path := range dirs {
 		entries, err := os.ReadDir(path)
 		if err != nil {
 			continue
@@ -37,6 +41,22 @@ func getFileNamesFromDirectories() []string {
 func isFileExecutable(info os.FileInfo) bool {
 	mode := info.Mode()
 	return mode.IsRegular() && (mode&0111 != 0) // any executable bit set
+}
+
+func getCommandsTrie(builtString map[string]builtin) *trieNode {
+	t := createTrie()
+
+	// Insert builtString commands
+	for k := range builtString {
+		t.insert(k)
+	}
+
+	pathFiles := getFileNamesFromDirectories()
+	for _, file := range pathFiles {
+		t.insert(file)
+	}
+
+	return t
 }
 
 /*
@@ -120,11 +140,11 @@ const (
 	errorOut   redirectionType = "errorOut"
 )
 
-type actionType string 
+type actionType string
 
 const (
 	redirectFile actionType = "redirect"
-	appendFile actionType = "append"
+	appendFile   actionType = "append"
 )
 
 func hasOutputRedirection(params []string) ([]string, []string, actionType, redirectionType, error) {
@@ -201,6 +221,53 @@ func appendContentToFile(content string, destination string) error {
 	return nil
 }
 
+func checkRedirection(output bytes.Buffer, destinationSlice []string, actionT actionType, redirectionT redirectionType, termOldState *term.State) (bool, error) {
+
+	if output.Len() > 0 {
+		if actionT == redirectFile && redirectionT == successOut {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := writeContentTofile([]byte(output.Bytes()), destination)
+			if err != nil {
+				term.Restore(int(os.Stdin.Fd()), termOldState)
+				return false, err
+			}
+			return false, nil
+		}
+		if actionT == redirectFile && redirectionT == errorOut {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := writeContentTofile([]byte(""), destination)
+			if err != nil {
+				term.Restore(int(os.Stdin.Fd()), termOldState)
+				return false, err
+			}
+			return true, nil
+		}
+
+		if actionT == appendFile && redirectionT == successOut {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := appendContentToFile(output.String(), destination)
+			if err != nil {
+				term.Restore(int(os.Stdin.Fd()), termOldState)
+				return false, err
+			}
+			return false, nil
+		}
+
+		if actionT == appendFile && redirectionT == errorOut {
+			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
+			err := appendContentToFile("", destination)
+			if err != nil {
+				term.Restore(int(os.Stdin.Fd()), termOldState)
+				return false, err
+			}
+			return true, nil
+		}
+
+		return true, nil
+	}
+	return false, nil
+}
+
 func processExternalCommandOutput(
 	successString string,
 	successBytes []byte,
@@ -259,15 +326,26 @@ func processExternalCommandOutput(
 
 }
 
-
 func removeNewLines(content string) string {
-	if (len(content) > 0 && content[len(content) - 1] == '\n') {
-		return content[:len(content) - 1]
+	if len(content) > 0 && content[len(content)-1] == '\n' {
+		return content[:len(content)-1]
 	}
 	return content
 }
 
-
 func transformNewLines(content string) string {
 	return removeNewLines(strings.ReplaceAll(content, "\n", "\r\n"))
+}
+
+type crlfWriter struct {
+	w io.Writer
+}
+
+func (c crlfWriter) Write(p []byte) (int, error) {
+	out := bytes.ReplaceAll(p, []byte("\n"), []byte("\r\n"))
+	_, err := c.w.Write(out)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
