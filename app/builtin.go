@@ -39,13 +39,13 @@ func init() {
 		if !ok {
 			path := getCommandDirectoryAsync(cmd)
 			if path != "" {
-				fmt.Fprintf(out, "%s is %s", cmd, path)
+				fmt.Fprintf(out, "%s is %s\n", cmd, path)
 				return nil
 			}
-			fmt.Fprintf(out, "%s: not found", cmd)
+			fmt.Fprintf(out, "%s: not found\n", cmd)
 			return nil
 		}
-		fmt.Fprintf(out, "%s is a shell builtin", cmd)
+		fmt.Fprintf(out, "%s is a shell builtin\n", cmd)
 		return nil
 	}
 	builtInCommandMap["type"] = typeCmd
@@ -67,7 +67,7 @@ func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State) error 
 }
 
 func echo(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
-	fmt.Fprint(out, strings.Join(args, ""))
+	fmt.Fprintln(out, strings.Trim(strings.Join(args, ""), " "))
 	return nil
 }
 
@@ -76,7 +76,7 @@ func pwd(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
 	if err != nil {
 		return errors.New("error finding path")
 	}
-	fmt.Fprint(out, currentDir)
+	fmt.Fprintln(out, currentDir)
 	return nil
 }
 
@@ -97,7 +97,7 @@ func cd(_ io.Reader, out io.Writer, args []string, termState *term.State) error 
 	}
 	_, err := os.Stat(path)
 	if err != nil {
-		fmt.Fprintf(out, "cd: %s: No such file or directory", path)
+		fmt.Fprintf(out, "cd: %s: No such file or directory\n", path)
 		return nil
 	}
 	err = os.Chdir(path)

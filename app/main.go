@@ -129,7 +129,8 @@ func main() {
 				fmt.Print(terminalChar)
 				continue
 			}
-
+			
+			buffer.Reset()
 			var output bytes.Buffer
 			commandParams, destinationSlice, actionT, redirectionT, err := hasOutputRedirection(commandData.params)
 			if err != nil {
@@ -148,9 +149,12 @@ func main() {
 			}
 			if shouldPrint && output.Len() > 0 {
 				fmt.Printf("\r\n%s", output.String())
+				fmt.Printf("\r%s", terminalChar)
+			} else {
+				fmt.Printf("\r\n%s", terminalChar)
 			}
-			buffer.Reset()
-			fmt.Printf("\r\n%s", terminalChar)
+			
+			
 
 		case '\t': // TAB
 			current := buffer.String()

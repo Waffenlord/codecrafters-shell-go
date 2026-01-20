@@ -195,34 +195,21 @@ func writeContentTofile(content []byte, destination string) error {
 }
 
 func appendContentToFile(content string, destination string) error {
-	fileInfo, err := os.Stat(destination)
-	hasContent := false
-	if err == nil && fileInfo.Size() > 0 {
-		hasContent = true
-	}
-
 	f, err := os.OpenFile(destination, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	if hasContent {
-		if _, err := f.WriteString("\r\n"); err != nil {
-			return err
-		}
-	}
+	//cleanContent := removeNewLines(content)
 
-	cleanContent := removeNewLines(content)
-
-	if _, err := f.WriteString(cleanContent); err != nil {
+	if _, err := f.WriteString(content); err != nil {
 		return err
 	}
 	return nil
 }
 
 func checkRedirection(output bytes.Buffer, destinationSlice []string, actionT actionType, redirectionT redirectionType, termOldState *term.State) (bool, error) {
-
 	if output.Len() > 0 {
 		if actionT == redirectFile && redirectionT == successOut {
 			destination := strings.Trim(strings.Join(destinationSlice, ""), " ")
@@ -337,15 +324,9 @@ func transformNewLines(content string) string {
 	return removeNewLines(strings.ReplaceAll(content, "\n", "\r\n"))
 }
 
-type crlfWriter struct {
-	w io.Writer
-}
-
-func (c crlfWriter) Write(p []byte) (int, error) {
-	out := bytes.ReplaceAll(p, []byte("\n"), []byte("\r\n"))
-	_, err := c.w.Write(out)
-	if err != nil {
-		return 0, err
-	}
-	return len(p), nil
+func drain(r *os.File) {
+	go func() {
+		io.Copy(io.Discard, r)
+		r.Close()
+	}()
 }

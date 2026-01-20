@@ -1,56 +1,65 @@
 package main
 
 import (
-	"golang.org/x/term"
 	"io"
 	"os"
 	"os/exec"
+
+	"golang.org/x/term"
 )
 
 type pipelineCommand interface {
-	start(args []string, termState *term.State) error
+	start(termState *term.State) error
 	wait() error
 	setStdin(io.Reader)
 	setStdout(io.Writer)
 	setStderr(io.Writer)
+	readsStdin() bool
+	ownsStdout() bool
 }
 
 type externalCmd struct {
-	cmd *exec.Cmd
+	cmd    *exec.Cmd
+	rStdin bool
 }
 
 func (e *externalCmd) setStdin(r io.Reader)  { e.cmd.Stdin = r }
 func (e *externalCmd) setStdout(w io.Writer) { e.cmd.Stdout = w }
 func (e *externalCmd) setStderr(w io.Writer) { e.cmd.Stderr = w }
 
-func (e *externalCmd) start(_ []string, _ *term.State) error { return e.cmd.Start() }
-func (e *externalCmd) wait() error                           { return e.cmd.Wait() }
+func (e *externalCmd) start(_ *term.State) error { return e.cmd.Start() }
+func (e *externalCmd) wait() error               { return e.cmd.Wait() }
+func (e *externalCmd) readsStdin() bool          { return e.rStdin }
+func (e *externalCmd) ownsStdout() bool          { return false }
 
 func newExternalCmd(name string, args []string) *externalCmd {
 	return &externalCmd{
-		cmd: exec.Command(name, args...),
+		cmd:    exec.Command(name, args...),
+		rStdin: true,
 	}
 }
 
 type builtinCmd struct {
 	fn     builtin
+	args   []string
 	in     io.Reader
 	out    io.Writer
 	errOut io.Writer
 	done   chan error
+	rStdin bool
 }
 
 func (b *builtinCmd) setStdin(r io.Reader)  { b.in = r }
 func (b *builtinCmd) setStdout(w io.Writer) { b.out = w }
 func (b *builtinCmd) setStderr(w io.Writer) { b.errOut = w }
 
-func (b *builtinCmd) start(args []string, termState *term.State) error {
+func (b *builtinCmd) start(termState *term.State) error {
 	go func() {
-		err := b.fn(b.in, b.out, args, termState)
-		b.done <- err
-		if c, ok := b.out.(io.Closer); ok {
+		err := b.fn(b.in, b.out, b.args, termState)
+		if c, ok := b.out.(io.Closer); ok && c != os.Stdout && c != os.Stderr {
 			c.Close()
 		}
+		b.done <- err
 	}()
 	return nil
 }
@@ -58,10 +67,13 @@ func (b *builtinCmd) start(args []string, termState *term.State) error {
 func (b *builtinCmd) wait() error {
 	return <-b.done
 }
+func (b *builtinCmd) readsStdin() bool { return b.rStdin }
+func (b *builtinCmd) ownsStdout() bool { return true }
 
-func newBuiltinCmd(fn builtin) *builtinCmd {
+func newBuiltinCmd(fn builtin, args []string) *builtinCmd {
 	return &builtinCmd{
 		fn:   fn,
+		args: args,
 		done: make(chan error, 1),
 	}
 }
@@ -73,7 +85,7 @@ func processPipeline(commands []commandReceived, menu builtInMenu, termOldState 
 		isBuiltIn := menu.isBuiltIn(c.command)
 		if isBuiltIn {
 			cmd := menu.commands[c.command]
-			pipelineCommands[i] = newBuiltinCmd(cmd)
+			pipelineCommands[i] = newBuiltinCmd(cmd, c.params)
 		} else {
 			paramsWithoutSpaces := filterSpacesFromParams(c.params)
 			pipelineCommands[i] = newExternalCmd(c.command, paramsWithoutSpaces)
@@ -104,10 +116,8 @@ func processPipeline(commands []commandReceived, menu builtInMenu, termOldState 
 		}
 
 		pc.setStderr(os.Stderr)
-	}
 
-	for _, pc := range pipelineCommands {
-		if err := pc.start(nil, termOldState); err != nil {
+		if err := pc.start(termOldState); err != nil {
 			return err
 		}
 	}
@@ -120,6 +130,5 @@ func processPipeline(commands []commandReceived, menu builtInMenu, termOldState 
 	for _, pc := range pipelineCommands {
 		pc.wait()
 	}
-
 	return nil
 }
