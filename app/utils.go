@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -201,8 +200,6 @@ func appendContentToFile(content string, destination string) error {
 	}
 	defer f.Close()
 
-	//cleanContent := removeNewLines(content)
-
 	if _, err := f.WriteString(content); err != nil {
 		return err
 	}
@@ -322,11 +319,4 @@ func removeNewLines(content string) string {
 
 func transformNewLines(content string) string {
 	return removeNewLines(strings.ReplaceAll(content, "\n", "\r\n"))
-}
-
-func drain(r *os.File) {
-	go func() {
-		io.Copy(io.Discard, r)
-		r.Close()
-	}()
 }
