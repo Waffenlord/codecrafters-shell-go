@@ -52,6 +52,7 @@ func main() {
 				fmt.Print(terminalChar)
 				continue
 			}
+			commandMenu.history = append(commandMenu.history, commandTyped)
 			commands, hasPipeline := parseInput(commandTyped)
 			if len(commands) == 0 {
 				fmt.Printf("\r\n%s: command not found\r\n", commandTyped)
@@ -137,7 +138,7 @@ func main() {
 				term.Restore(int(os.Stdin.Fd()), oldState)
 				log.Fatal(err)
 			}
-			err = builtInCommand(os.Stdin, &output, commandParams, oldState)
+			err = builtInCommand(os.Stdin, &output, commandParams, oldState, commandMenu.history)
 			if err != nil {
 				term.Restore(int(os.Stdin.Fd()), oldState)
 				log.Fatal(err)

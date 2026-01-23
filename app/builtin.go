@@ -10,11 +10,12 @@ import (
 	"golang.org/x/term"
 )
 
-type builtin func(in io.Reader, out io.Writer, args []string, termState *term.State) error
+type builtin func(in io.Reader, out io.Writer, args []string, termState *term.State, historyList []string) error
 
 type builtInMenu struct {
 	commands   map[string]builtin
 	prefixTrie *trieNode
+	history    []string
 }
 
 func (bM builtInMenu) isBuiltIn(cmd string) bool {
@@ -34,7 +35,7 @@ var builtInCommandMap = map[string]builtin{
 }
 
 func init() {
-	typeCmd = func(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
+	typeCmd = func(_ io.Reader, out io.Writer, args []string, _ *term.State, _ []string) error {
 		cmd := strings.Join(args, "")
 		_, ok := builtInCommandMap[cmd]
 		if !ok {
@@ -56,10 +57,11 @@ func newBuiltInMenu() builtInMenu {
 	return builtInMenu{
 		commands:   builtInCommandMap,
 		prefixTrie: getCommandsTrie(builtInCommandMap),
+		history: []string{},
 	}
 }
 
-func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State) error {
+func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State, _ []string) error {
 	fmt.Printf("\r\n")
 	term.Restore(int(os.Stdin.Fd()), termState)
 	os.Exit(0)
@@ -67,12 +69,12 @@ func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State) error 
 	return nil
 }
 
-func echo(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
+func echo(_ io.Reader, out io.Writer, args []string, _ *term.State, _ []string) error {
 	fmt.Fprintln(out, strings.Trim(strings.Join(args, ""), " "))
 	return nil
 }
 
-func pwd(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
+func pwd(_ io.Reader, out io.Writer, args []string, _ *term.State, _ []string) error {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		return errors.New("error finding path")
@@ -81,7 +83,7 @@ func pwd(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
 	return nil
 }
 
-func cd(_ io.Reader, out io.Writer, args []string, termState *term.State) error {
+func cd(_ io.Reader, out io.Writer, args []string, termState *term.State, _ []string) error {
 	path := strings.Join(args, "")
 	if path == "~" {
 		homeDir, err := os.UserHomeDir()
@@ -109,6 +111,13 @@ func cd(_ io.Reader, out io.Writer, args []string, termState *term.State) error 
 	return nil
 }
 
-func history(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
+func history(_ io.Reader, out io.Writer, args []string, _ *term.State, hList []string) error {
+	var historyOutput string
+	if len(hList) > 0 {
+		for i, row := range hList {
+			historyOutput += fmt.Sprintf("\t%d %s\r\n", i + 1, row)
+		}
+		fmt.Fprint(out, historyOutput)
+	}
 	return nil
 }

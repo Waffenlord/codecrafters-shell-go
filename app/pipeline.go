@@ -47,6 +47,7 @@ type builtinCmd struct {
 	errOut io.Writer
 	done   chan error
 	rStdin bool
+	history []string
 }
 
 func (b *builtinCmd) setStdin(r io.Reader)  { b.in = r }
@@ -55,7 +56,7 @@ func (b *builtinCmd) setStderr(w io.Writer) { b.errOut = w }
 
 func (b *builtinCmd) start(termState *term.State) error {
 	go func() {
-		err := b.fn(b.in, b.out, b.args, termState)
+		err := b.fn(b.in, b.out, b.args, termState, b.history)
 		if c, ok := b.out.(io.Closer); ok && c != os.Stdout && c != os.Stderr {
 			c.Close()
 		}
@@ -70,7 +71,7 @@ func (b *builtinCmd) wait() error {
 func (b *builtinCmd) readsStdin() bool { return b.rStdin }
 func (b *builtinCmd) ownsStdout() bool { return true }
 
-func newBuiltinCmd(fn builtin, args []string) *builtinCmd {
+func newBuiltinCmd(fn builtin, args []string, history []string) *builtinCmd {
 	return &builtinCmd{
 		fn:   fn,
 		args: args,
@@ -85,7 +86,7 @@ func processPipeline(commands []commandReceived, menu builtInMenu, termOldState 
 		isBuiltIn := menu.isBuiltIn(c.command)
 		if isBuiltIn {
 			cmd := menu.commands[c.command]
-			pipelineCommands[i] = newBuiltinCmd(cmd, c.params)
+			pipelineCommands[i] = newBuiltinCmd(cmd, c.params, menu.history)
 		} else {
 			paramsWithoutSpaces := filterSpacesFromParams(c.params)
 			pipelineCommands[i] = newExternalCmd(c.command, paramsWithoutSpaces)
