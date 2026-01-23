@@ -30,6 +30,7 @@ var builtInCommandMap = map[string]builtin{
 	"type": typeCmd,
 	"pwd":  pwd,
 	"cd":   cd,
+	"history": history,
 }
 
 func init() {
@@ -105,5 +106,9 @@ func cd(_ io.Reader, out io.Writer, args []string, termState *term.State) error 
 		term.Restore(int(os.Stdin.Fd()), termState)
 		return errors.New("error changing path")
 	}
+	return nil
+}
+
+func history(_ io.Reader, out io.Writer, args []string, _ *term.State) error {
 	return nil
 }
