@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync"
 
 	"golang.org/x/term"
 )
@@ -91,6 +92,7 @@ func main() {
 					cmd := exec.Command(commandData.command, commandParams...)
 
 					var stdoutBuf, stderrBuf bytes.Buffer
+					
 
 					stdoutPipe, err := cmd.StdoutPipe()
 					if err != nil {
@@ -109,10 +111,21 @@ func main() {
 					stdoutWriter := io.Writer(&stdoutBuf)
 					stderrWriter := io.Writer(&stderrBuf)
 
-					go io.Copy(stdoutWriter, stdoutPipe)
-					go io.Copy(stderrWriter, stderrPipe)
+					var wg sync.WaitGroup
+					wg.Add(2)
+
+					go func() {
+						defer wg.Done()
+						io.Copy(stdoutWriter, stdoutPipe)
+					}()
+
+					go func() {
+						defer wg.Done()
+						io.Copy(stderrWriter, stderrPipe)
+					}()
 
 					cmd.Wait()
+					wg.Wait()
 
 					stdoutBytes := stdoutBuf.Bytes()
 					stderrBytes := stderrBuf.Bytes()
