@@ -239,8 +239,14 @@ func main() {
 						fmt.Printf("$ %s", cmd)
 
 					case 'B': // DOWN ARROW
-						fmt.Println("DOWN")
-						continue
+						if commandMenu.cmdIndex < len(commandMenu.history) - 1 {
+							commandMenu.cmdIndex += 1
+						}
+						cmd := commandMenu.history[commandMenu.cmdIndex]
+						buffer.Reset()
+						buffer.WriteString(cmd)
+						fmt.Print("\033[2K\r")
+						fmt.Printf("$ %s", cmd)
 					}
 					i += 2
 				}
