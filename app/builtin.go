@@ -17,6 +17,7 @@ type builtInMenu struct {
 	commands   map[string]builtin
 	prefixTrie *trieNode
 	history    []string
+	cmdIndex	int
 }
 
 func (bM builtInMenu) isBuiltIn(cmd string) bool {
@@ -54,8 +55,8 @@ func init() {
 	builtInCommandMap["type"] = typeCmd
 }
 
-func newBuiltInMenu() builtInMenu {
-	return builtInMenu{
+func newBuiltInMenu() *builtInMenu {
+	return &builtInMenu{
 		commands:   builtInCommandMap,
 		prefixTrie: getCommandsTrie(builtInCommandMap),
 		history: []string{},

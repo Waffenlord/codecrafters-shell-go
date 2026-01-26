@@ -76,10 +76,11 @@ func newBuiltinCmd(fn builtin, args []string, history []string) *builtinCmd {
 		fn:   fn,
 		args: args,
 		done: make(chan error, 1),
+		history: history,
 	}
 }
 
-func processPipeline(commands []commandReceived, menu builtInMenu, termOldState *term.State) error {
+func processPipeline(commands []commandReceived, menu *builtInMenu, termOldState *term.State) error {
 	pipelineCommands := make([]pipelineCommand, len(commands))
 
 	for i, c := range commands {
