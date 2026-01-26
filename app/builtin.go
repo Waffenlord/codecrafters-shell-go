@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"golang.org/x/term"
@@ -114,8 +115,17 @@ func cd(_ io.Reader, out io.Writer, args []string, termState *term.State, _ []st
 func history(_ io.Reader, out io.Writer, args []string, _ *term.State, hList []string) error {
 	var historyOutput string
 	if len(hList) > 0 {
-		for i, row := range hList {
-			historyOutput += fmt.Sprintf("\t%d %s\r\n", i + 1, row)
+		currentHistory := parseHistoryList(hList)
+		if len(args) > 0 {
+			limit := args[0]
+			n, err := strconv.Atoi(limit)
+			if err == nil {
+				currentHistory = processHistoryLimit(currentHistory, n)
+			}
+		}
+
+		for _, row := range currentHistory {
+			historyOutput += fmt.Sprintf("\t%d %s\r\n", row.order, row.value)
 		}
 		fmt.Fprint(out, historyOutput)
 	}

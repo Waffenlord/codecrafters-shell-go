@@ -320,3 +320,28 @@ func removeNewLines(content string) string {
 func transformNewLines(content string) string {
 	return removeNewLines(strings.ReplaceAll(content, "\n", "\r\n"))
 }
+
+type historyRecord struct {
+	order int
+	value string
+}
+
+func parseHistoryList(history []string) []historyRecord {
+	result := []historyRecord{}
+	for i, val := range history {
+		result = append(result, historyRecord{
+			order: i + 1,
+			value: val,
+		})
+	}
+
+	return result
+}
+
+func processHistoryLimit(history []historyRecord, limit int) []historyRecord {
+	if limit >= len(history) {
+		return history
+	}
+	startIndex := len(history) - limit
+	return history[startIndex:]
+}
