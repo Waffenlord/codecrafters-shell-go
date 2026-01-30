@@ -56,7 +56,7 @@ func (b *builtinCmd) setStderr(w io.Writer) { b.errOut = w }
 
 func (b *builtinCmd) start(termState *term.State) error {
 	go func() {
-		err := b.fn(b.in, b.out, b.args, termState, b.history)
+		err := b.fn(b.in, b.out, b.args, termState, &b.history)
 		if c, ok := b.out.(io.Closer); ok && c != os.Stdout && c != os.Stderr {
 			c.Close()
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -11,13 +12,13 @@ import (
 	"golang.org/x/term"
 )
 
-type builtin func(in io.Reader, out io.Writer, args []string, termState *term.State, historyList []string) error
+type builtin func(in io.Reader, out io.Writer, args []string, termState *term.State, historyList *[]string) error
 
 type builtInMenu struct {
 	commands   map[string]builtin
 	prefixTrie *trieNode
 	history    []string
-	cmdIndex	int
+	cmdIndex   int
 }
 
 func (bM builtInMenu) isBuiltIn(cmd string) bool {
@@ -28,16 +29,16 @@ func (bM builtInMenu) isBuiltIn(cmd string) bool {
 var typeCmd builtin
 
 var builtInCommandMap = map[string]builtin{
-	"exit": exit,
-	"echo": echo,
-	"type": typeCmd,
-	"pwd":  pwd,
-	"cd":   cd,
+	"exit":    exit,
+	"echo":    echo,
+	"type":    typeCmd,
+	"pwd":     pwd,
+	"cd":      cd,
 	"history": history,
 }
 
 func init() {
-	typeCmd = func(_ io.Reader, out io.Writer, args []string, _ *term.State, _ []string) error {
+	typeCmd = func(_ io.Reader, out io.Writer, args []string, _ *term.State, _ *[]string) error {
 		cmd := strings.Join(args, "")
 		_, ok := builtInCommandMap[cmd]
 		if !ok {
@@ -59,11 +60,11 @@ func newBuiltInMenu() *builtInMenu {
 	return &builtInMenu{
 		commands:   builtInCommandMap,
 		prefixTrie: getCommandsTrie(builtInCommandMap),
-		history: []string{},
+		history:    []string{},
 	}
 }
 
-func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State, _ []string) error {
+func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State, _ *[]string) error {
 	fmt.Printf("\r\n")
 	term.Restore(int(os.Stdin.Fd()), termState)
 	os.Exit(0)
@@ -71,12 +72,12 @@ func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State, _ []st
 	return nil
 }
 
-func echo(_ io.Reader, out io.Writer, args []string, _ *term.State, _ []string) error {
+func echo(_ io.Reader, out io.Writer, args []string, _ *term.State, _ *[]string) error {
 	fmt.Fprintln(out, strings.Trim(strings.Join(args, ""), " "))
 	return nil
 }
 
-func pwd(_ io.Reader, out io.Writer, args []string, _ *term.State, _ []string) error {
+func pwd(_ io.Reader, out io.Writer, args []string, _ *term.State, _ *[]string) error {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		return errors.New("error finding path")
@@ -85,7 +86,7 @@ func pwd(_ io.Reader, out io.Writer, args []string, _ *term.State, _ []string) e
 	return nil
 }
 
-func cd(_ io.Reader, out io.Writer, args []string, termState *term.State, _ []string) error {
+func cd(_ io.Reader, out io.Writer, args []string, termState *term.State, _ *[]string) error {
 	path := strings.Join(args, "")
 	if path == "~" {
 		homeDir, err := os.UserHomeDir()
@@ -113,13 +114,39 @@ func cd(_ io.Reader, out io.Writer, args []string, termState *term.State, _ []st
 	return nil
 }
 
-func history(_ io.Reader, out io.Writer, args []string, _ *term.State, hList []string) error {
+func history(_ io.Reader, out io.Writer, args []string, _ *term.State, hList *[]string) error {
 	var historyOutput string
-	if len(hList) > 0 {
-		currentHistory := parseHistoryList(hList)
+	existingHistory := *hList
+	totalArgs := len(args)
+	if totalArgs > 0 {
+		first := args[0]
+		switch first {
+		case "-r":
+			if totalArgs < 1 {
+				return errors.New("path is required")
+			}
+			cleanedParams := filterSpacesFromParams(args)
+			path := cleanedParams[1]
+			var buffer bytes.Buffer
+			err := readContentFromFile(&buffer, path)
+			if err != nil {
+				return err
+			}
+			entries := strings.Split(buffer.String(), "\n")
+			for _, e := range entries {
+				if len(e) > 0 {
+					*hList = append(*hList, e)
+				}
+			}
+			return nil
+		}
+	}
+
+	if len(existingHistory) > 0 {
+		currentHistory := parseHistoryList(existingHistory)
 		if len(args) > 0 {
-			limit := args[0]
-			n, err := strconv.Atoi(limit)
+			first := args[0]
+			n, err := strconv.Atoi(first)
 			if err == nil {
 				currentHistory = processHistoryLimit(currentHistory, n)
 			}

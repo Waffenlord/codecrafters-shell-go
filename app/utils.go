@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -204,6 +206,20 @@ func appendContentToFile(content string, destination string) error {
 		return err
 	}
 	return nil
+}
+
+func readContentFromFile(out io.Writer, path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err 
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fmt.Fprintln(out, scanner.Text())
+	}
+	return scanner.Err()
 }
 
 func checkRedirection(output bytes.Buffer, destinationSlice []string, actionT actionType, redirectionT redirectionType, termOldState *term.State) (bool, error) {

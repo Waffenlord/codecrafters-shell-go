@@ -153,7 +153,7 @@ func main() {
 					term.Restore(int(os.Stdin.Fd()), oldState)
 					log.Fatal(err)
 				}
-				err = builtInCommand(os.Stdin, &output, commandParams, oldState, commandMenu.history)
+				err = builtInCommand(os.Stdin, &output, commandParams, oldState, &commandMenu.history)
 				if err != nil {
 					term.Restore(int(os.Stdin.Fd()), oldState)
 					log.Fatal(err)
