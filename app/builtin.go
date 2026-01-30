@@ -139,6 +139,20 @@ func history(_ io.Reader, out io.Writer, args []string, _ *term.State, hList *[]
 				}
 			}
 			return nil
+		case "-w":
+			if totalArgs < 1 {
+				return errors.New("path is required")
+			}
+			cleanedParams := filterSpacesFromParams(args)
+			path := cleanedParams[1]
+			for _, e := range existingHistory {
+				historyOutput += fmt.Sprintf("%s\n", e)
+			}
+			err := writeContentTofile([]byte(historyOutput), path)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 
