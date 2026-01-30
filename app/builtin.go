@@ -153,6 +153,36 @@ func history(_ io.Reader, out io.Writer, args []string, _ *term.State, hList *[]
 				return err
 			}
 			return nil
+		case "-a":
+			if totalArgs < 1 {
+				return errors.New("path is required")
+			}
+			cleanedParams := filterSpacesFromParams(args)
+			path := cleanedParams[1]
+			hasAppended := false
+			appendedIndex := 0
+			for i, e := range existingHistory {
+				if strings.Contains(e, "history -a") && i != len(existingHistory) - 1 {
+					hasAppended = true
+					appendedIndex = i 
+				}
+			}
+
+			startIndex := 0
+			if hasAppended && appendedIndex + 1 < len(existingHistory) {
+				startIndex = appendedIndex + 1
+			}
+
+			for startIndex < len(existingHistory) {
+				entrie := existingHistory[startIndex]
+				historyOutput += fmt.Sprintf("%s\n", entrie)
+				startIndex++
+			}
+			err := appendContentToFile(historyOutput, path)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 
