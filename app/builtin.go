@@ -64,7 +64,27 @@ func newBuiltInMenu() *builtInMenu {
 	}
 }
 
-func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State, _ *[]string) error {
+func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State, hList *[]string) error {
+	historyPath := os.Getenv("HISTFILE")
+	if historyPath != "" {
+		var buf bytes.Buffer
+		err := readContentFromFile(&buf, historyPath)
+		if err != nil {
+			return err
+		}
+		if buf.Len() > 0 {
+			err := manageHistory(appendMode, termState, hList)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := manageHistory(writeMode, termState, hList)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	
 	fmt.Printf("\r\n")
 	term.Restore(int(os.Stdin.Fd()), termState)
 	os.Exit(0)

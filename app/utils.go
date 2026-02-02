@@ -211,7 +211,7 @@ func appendContentToFile(content string, destination string) error {
 func readContentFromFile(out io.Writer, path string) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return err 
+		return err
 	}
 	defer f.Close()
 
@@ -360,4 +360,36 @@ func processHistoryLimit(history []historyRecord, limit int) []historyRecord {
 	}
 	startIndex := len(history) - limit
 	return history[startIndex:]
+}
+
+type historyMode string
+
+const (
+	readMode   historyMode = "-r"
+	writeMode  historyMode = "-w"
+	appendMode historyMode = "-a"
+)
+
+func manageHistory(mode historyMode, termState *term.State, hList *[]string) error {
+	historyPath := os.Getenv("HISTFILE")
+	if historyPath != "" {
+		switch mode {
+		case readMode:
+			err := history(os.Stdin, os.Stdout, []string{"-r", " ", historyPath}, termState, hList)
+			if err != nil {
+				return err
+			}
+		case writeMode:
+			err := history(os.Stdin, os.Stdout, []string{"-w", " ", historyPath}, termState, hList)
+			if err != nil {
+				return err
+			}
+		case appendMode:
+			err := history(os.Stdin, os.Stdout, []string{"-a", " ", historyPath}, termState, hList)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

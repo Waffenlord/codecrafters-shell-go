@@ -23,7 +23,6 @@ const terminalChar = "$ "
 
 func main() {
 	commandMenu := newBuiltInMenu()
-	historyPath := os.Getenv("HISTFILE")
 	fmt.Fprint(os.Stdout, terminalChar)
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -31,11 +30,9 @@ func main() {
 		panic(err)
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
-	if historyPath != "" {
-		err := history(os.Stdin, os.Stdout, []string{"-r", " ", historyPath}, oldState, &commandMenu.history)
-		if err != nil {
-			log.Fatal(err)
-		}
+	err = manageHistory("-r", oldState, &commandMenu.history)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	var buffer strings.Builder
