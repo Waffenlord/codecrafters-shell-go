@@ -73,7 +73,18 @@ func exit(_ io.Reader, _ io.Writer, args []string, termState *term.State, hList 
 			return err
 		}
 		if buf.Len() > 0 {
-			err := manageHistory(appendMode, termState, hList)
+			entries := strings.Split(buf.String(), "\n")
+			startIndex := 0
+			lastIndex := len(*hList)
+			currentHistory := *hList
+			for i := lastIndex - 1; i >= 0; i-- {
+				if currentHistory[i] == entries[len(entries) - 2] {
+					startIndex = i + 1
+				}
+			}
+
+			filteredList := currentHistory[startIndex:]
+			err := manageHistory(appendMode, termState, &filteredList)
 			if err != nil {
 				return err
 			}
