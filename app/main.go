@@ -23,6 +23,7 @@ const terminalChar = "$ "
 
 func main() {
 	commandMenu := newBuiltInMenu()
+	historyPath := os.Getenv("HISTFILE")
 	fmt.Fprint(os.Stdout, terminalChar)
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -30,6 +31,12 @@ func main() {
 		panic(err)
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
+	if historyPath != "" {
+		err := history(os.Stdin, os.Stdout, []string{"-r", " ", historyPath}, oldState, &commandMenu.history)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	var buffer strings.Builder
 	input := make([]byte, 3)
@@ -239,7 +246,7 @@ func main() {
 						fmt.Printf("$ %s", cmd)
 
 					case 'B': // DOWN ARROW
-						if commandMenu.cmdIndex < len(commandMenu.history) - 1 {
+						if commandMenu.cmdIndex < len(commandMenu.history)-1 {
 							commandMenu.cmdIndex += 1
 						}
 						cmd := commandMenu.history[commandMenu.cmdIndex]
